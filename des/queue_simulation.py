@@ -18,27 +18,27 @@ class QueueSimulation:
         for i in range(n_customers):
             customer = {
                 'number': i,
-                'arrive_time': self.env.now,
-                'job_time': random.expovariate(1/self.capacity)
+                'arrival_time': self.env.now,
+                'job_time': random.expovariate(self.capacity)
             }
             self.customers.put(customer)
 
             print(f'{round(self.env.now,2)}: Customer {customer_number} arrives')
 
             customer_number += 1
-            yield self.env.timeout(random.expovariate(1/self.arrival_rate))
+            yield self.env.timeout(random.expovariate(self.arrival_rate))
 
     def server(self):
         while True:
             customer = yield self.customers.get()
 
-            wait_time = self.env.now - customer["arrive_time"]
+            service_time = self.env.now
 
-            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is serviced, wait time: {round(wait_time,2)}')
+            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is serviced, wait time: {round(service_time - customer["arrival_time"],2)}')
 
             yield self.env.timeout(random.expovariate(customer["job_time"]))
 
-            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - wait_time,2)}')
+            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - service_time,2)}')
 
     def run(self, n_customers):
         self.env.process(self.create_customers(n_customers))
@@ -47,5 +47,5 @@ class QueueSimulation:
 
 
 if __name__ == '__main__':
-    sim = QueueSimulation(1.0, 1.0, 2)
-    sim.run(1000)
+    sim = QueueSimulation(5, 2, 2)
+    sim.run(100)
