@@ -1,20 +1,54 @@
-import random
+import random, simpy
+from functools import partial, wraps
+import numpy as np
+import matplotlib as plt
 
-import simpy
+
+def patch_resource(resource, pre=None, post=None):
+    """Patch *resource* so that it calls the callable *pre* before each
+    put/get/request/release operation and the callable *post* after each
+    operation.  The only argument to these functions is the resource
+    instance.
+    """
+    def get_wrapper(func):
+        # Generate a wrapper for put/get/request/release
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # This is the actual wrapper
+            # Call "pre" callback
+            if pre:
+                pre(resource)
+
+            # Perform actual operation
+            ret = func(*args, **kwargs)
+
+            # Call "post" callback
+            if post:
+                post(resource)
+
+            return ret
+        return wrapper
+
+    # Replace the original operations with our wrapper
+    for name in ['get']:
+        if hasattr(resource, name):
+            setattr(resource, name, get_wrapper(getattr(resource, name)))
 
 
 class QueueSimulation:
-    def __init__(self, arrival_rate, capacity, n_servers=1):
+    def __init__(self, arrival_rate, capacity, n_servers=1, debug=False):
         self.arrival_rate = arrival_rate
         self.capacity = capacity
         self.n_servers = n_servers
+        self.debug = debug
 
         self.env = simpy.Environment()
         self.customers = simpy.Store(self.env)
+        self.wait_times = []
+
+        patch_resource(self.customers, pre=self.monitor_wait_times)
 
     def create_customers(self, n_customers):
-        customer_number = 0
-
         for i in range(n_customers):
             customer = {
                 'number': i,
@@ -23,9 +57,9 @@ class QueueSimulation:
             }
             self.customers.put(customer)
 
-            print(f'{round(self.env.now,2)}: Customer {customer_number} arrives')
+            if self.debug:
+                print(f'{round(self.env.now,2)}: Customer {i} arrives')
 
-            customer_number += 1
             yield self.env.timeout(random.expovariate(self.arrival_rate))
 
     def server(self):
@@ -34,18 +68,41 @@ class QueueSimulation:
 
             service_time = self.env.now
 
-            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is serviced, wait time: {round(service_time - customer["arrival_time"],2)}')
+            if self.debug:
+                print(f'{round(self.env.now,2)}: Customer {customer["number"]} is serviced, wait time: {round(service_time - customer["arrival_time"],2)}')
 
             yield self.env.timeout(random.expovariate(customer["job_time"]))
 
-            print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - service_time,2)}')
+            if self.debug:
+                print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - service_time,2)}')
+
+    def monitor_wait_times(self, resource):
+        if len(resource.items) > 0:
+            if self.debug:
+                print(f'Monitor customer {resource.items[0]["number"]} wait time:: {round(self.env.now - resource.items[0]["arrival_time"], 2)}')
+
+            self.wait_times.append(self.env.now - resource.items[0]["arrival_time"])
 
     def run(self, n_customers):
+        self.wait_times = []
         self.env.process(self.create_customers(n_customers))
         [self.env.process(self.server()) for _ in range(self.n_servers)]
         self.env.run()
 
+        return np.mean(np.array(self.wait_times)), np.std(np.array(self.wait_times))
+
+
+def run_multiple_simulations(runs=100):
+    mean_wait_times = np.zeros(runs)
+    std_wait_times = np.zeros(runs)
+    for run in range(runs):
+        sim = QueueSimulation(5, 2, 2)
+        mean_wait_times[run], std_wait_times[run] = sim.run(n_customers=1000)
+
+    return mean_wait_times, std_wait_times
+
 
 if __name__ == '__main__':
-    sim = QueueSimulation(5, 2, 2)
-    sim.run(100)
+    means, stds = run_multiple_simulations(10)
+    print(f'Mean: {np.mean(means)}')
+    print(f'Std: {np.mean(stds)}')
