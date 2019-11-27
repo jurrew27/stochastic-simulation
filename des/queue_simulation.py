@@ -36,9 +36,10 @@ def patch_resource(resource, pre=None, post=None):
 
 
 class QueueSimulation:
-    def __init__(self, _lambda, mu, n_servers=1, shortest_job_first=False, debug=False):
+    def __init__(self, _lambda=1, mu=0.9, n_servers=1, degenerate_mu=True, shortest_job_first=False, debug=False):
         self._lambda = _lambda
         self.mu = mu
+        self.degenerate_mu = degenerate_mu
         self.n_servers = n_servers
         self.debug = debug
 
@@ -53,10 +54,13 @@ class QueueSimulation:
 
     def create_customers(self, n_customers):
         for i in range(n_customers):
-            if type(self.mu) is tuple:
-                job_time = np.random.exponential(1 / self.mu[0 if np.random.uniform() < 0.75 else 1])
+            if self.degenerate_mu:
+                job_time = self.mu
             else:
-                job_time = np.random.exponential(1 / self.mu)
+                if type(self.mu) is tuple:
+                    job_time = np.random.exponential(1 / self.mu[0 if np.random.uniform() < 0.75 else 1])
+                else:
+                    job_time = np.random.exponential(1 / self.mu)
 
             customer = {
                 'number': i,
