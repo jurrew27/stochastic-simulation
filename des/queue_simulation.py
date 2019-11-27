@@ -36,25 +36,36 @@ def patch_resource(resource, pre=None, post=None):
 
 
 class QueueSimulation:
-    def __init__(self, arrival_rate, capacity, n_servers=1, debug=False):
+    def __init__(self, arrival_rate, capacity, n_servers=1, shortest_job_first=False, debug=False):
         self.arrival_rate = arrival_rate
         self.capacity = capacity
         self.n_servers = n_servers
         self.debug = debug
 
         self.env = simpy.Environment()
-        self.customers = simpy.Store(self.env)
+
+        if shortest_job_first:
+            self.customers = simpy.PriorityStore(self.env)
+        else:
+            self.customers = simpy.Store(self.env)
+
         self.wait_times = []
 
         patch_resource(self.customers, pre=self.monitor_wait_times)
 
     def create_customers(self, n_customers):
         for i in range(n_customers):
+            job_time = random.expovariate(self.capacity)
+
             customer = {
                 'number': i,
                 'arrival_time': self.env.now,
-                'job_time': random.expovariate(self.capacity)
+                'job_time': job_time
             }
+
+            if type(self.customers) is simpy.PriorityStore:
+                customer = simpy.PriorityItem(job_time, customer)
+
             self.customers.put(customer)
 
             if self.debug:
@@ -65,23 +76,29 @@ class QueueSimulation:
     def server(self):
         while True:
             customer = yield self.customers.get()
+            if type(customer) is simpy.PriorityItem:
+                customer = customer[1]
 
             service_time = self.env.now
 
             if self.debug:
                 print(f'{round(self.env.now,2)}: Customer {customer["number"]} is serviced, wait time: {round(service_time - customer["arrival_time"],2)}')
 
-            yield self.env.timeout(random.expovariate(customer["job_time"]))
+            yield self.env.timeout(customer["job_time"])
 
             if self.debug:
                 print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - service_time,2)}')
 
     def monitor_wait_times(self, resource):
+        wait_time = 0
         if len(resource.items) > 0:
-            if self.debug:
-                print(f'Monitor customer {resource.items[0]["number"]} wait time:: {round(self.env.now - resource.items[0]["arrival_time"], 2)}')
+            customer = resource.items[0]
 
-            self.wait_times.append(self.env.now - resource.items[0]["arrival_time"])
+            if type(customer) is simpy.PriorityItem:
+                customer = customer[1]
+
+            wait_time = self.env.now - customer["arrival_time"]
+        self.wait_times.append(wait_time)
 
     def run(self, n_customers):
         self.wait_times = []
