@@ -49,8 +49,6 @@ class QueueSimulation:
         else:
             self.customers = simpy.Store(self.env)
 
-        self.wait_times = []
-
         patch_resource(self.customers, pre=self.monitor_wait_times)
 
     def create_customers(self, n_customers):
@@ -90,36 +88,33 @@ class QueueSimulation:
                 print(f'{round(self.env.now,2)}: Customer {customer["number"]} is finished, service time: {round(self.env.now - service_time,2)}')
 
     def monitor_wait_times(self, resource):
-        wait_time = 0
-        if len(resource.items) > 0:
-            customer = resource.items[0]
+        if len(resource.items) == 0:
+            return
 
-            if type(customer) is simpy.PriorityItem:
-                customer = customer[1]
+        customer = resource.items[0]
+        if type(customer) is simpy.PriorityItem:
+            customer = customer[1]
 
-            wait_time = self.env.now - customer["arrival_time"]
-        self.wait_times.append(wait_time)
+        self.wait_times[customer["number"]] = self.env.now - customer["arrival_time"]
 
     def run(self, n_customers):
-        self.wait_times = []
+        self.wait_times = np.zeros(n_customers)
         self.env.process(self.create_customers(n_customers))
         [self.env.process(self.server()) for _ in range(self.n_servers)]
         self.env.run()
 
-        return np.mean(np.array(self.wait_times)), np.std(np.array(self.wait_times))
+        return np.array(self.wait_times)
 
 
-def run_multiple_simulations(runs=100):
-    mean_wait_times = np.zeros(runs)
-    std_wait_times = np.zeros(runs)
+def run_multiple_simulations(runs, n_customers, *args, **kwargs):
+    wait_times = np.zeros((runs,n_customers))
     for run in range(runs):
-        sim = QueueSimulation(5, 2, 2)
-        mean_wait_times[run], std_wait_times[run] = sim.run(n_customers=1000)
+        wait_times[run] = QueueSimulation(*args, **kwargs).run(n_customers=n_customers)
 
-    return mean_wait_times, std_wait_times
+    return wait_times
 
 
 if __name__ == '__main__':
-    means, stds = run_multiple_simulations(10)
-    print(f'Mean: {np.mean(means)}')
-    print(f'Std: {np.mean(stds)}')
+    wait_times = run_multiple_simulations(runs=1, n_customers=10, arrival_rate=5, capacity=2, n_servers=2, debug=True)
+    print(f'Mean: {np.mean(wait_times)}')
+    print(f'Std: {np.mean(np.std(wait_times, axis=1))}')
