@@ -36,7 +36,7 @@ def patch_resource(resource, pre=None, post=None):
 
 
 class QueueSimulation:
-    def __init__(self, _lambda=1, mu=0.9, n_servers=1, degenerate_mu=True, shortest_job_first=False, debug=False):
+    def __init__(self, _lambda=1, mu=0.9, n_servers=1, degenerate_mu=False, shortest_job_first=False, debug=False):
         self._lambda = _lambda
         self.mu = mu
         self.degenerate_mu = degenerate_mu
