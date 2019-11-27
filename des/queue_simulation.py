@@ -1,7 +1,7 @@
-import random, simpy
-from functools import partial, wraps
+import simpy
+from functools import wraps
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 
 def patch_resource(resource, pre=None, post=None):
@@ -36,9 +36,9 @@ def patch_resource(resource, pre=None, post=None):
 
 
 class QueueSimulation:
-    def __init__(self, arrival_rate, capacity, n_servers=1, shortest_job_first=False, debug=False):
-        self.arrival_rate = arrival_rate
-        self.capacity = capacity
+    def __init__(self, _lambda, mu, n_servers=1, shortest_job_first=False, debug=False):
+        self._lambda = _lambda
+        self.mu = mu
         self.n_servers = n_servers
         self.debug = debug
 
@@ -53,7 +53,10 @@ class QueueSimulation:
 
     def create_customers(self, n_customers):
         for i in range(n_customers):
-            job_time = random.expovariate(self.capacity)
+            if type(self.mu) is tuple:
+                job_time = np.random.exponential(1 / self.mu[0 if np.random.uniform() < 0.75 else 1])
+            else:
+                job_time = np.random.exponential(1 / self.mu)
 
             customer = {
                 'number': i,
@@ -69,7 +72,7 @@ class QueueSimulation:
             if self.debug:
                 print(f'{round(self.env.now,2)}: Customer {i} arrives')
 
-            yield self.env.timeout(random.expovariate(self.arrival_rate))
+            yield self.env.timeout(np.random.exponential(1 / self._lambda))
 
     def server(self):
         while True:
@@ -115,6 +118,6 @@ def run_multiple_simulations(runs, n_customers, *args, **kwargs):
 
 
 if __name__ == '__main__':
-    wait_times = run_multiple_simulations(runs=1, n_customers=10, arrival_rate=5, capacity=2, n_servers=2, debug=True)
+    wait_times = run_multiple_simulations(runs=100, n_customers=1000, _lambda=0.9, mu=1, n_servers=1)
     print(f'Mean: {np.mean(wait_times)}')
     print(f'Std: {np.mean(np.std(wait_times, axis=1))}')
