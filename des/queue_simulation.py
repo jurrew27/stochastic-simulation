@@ -2,7 +2,8 @@ import simpy
 from functools import wraps
 import numpy as np
 import matplotlib.pyplot as plt
-
+import scipy.stats as scs
+import statsmodels.api as sm
 
 def patch_resource(resource, pre=None, post=None):
     """Patch *resource* so that it calls the callable *pre* before each
@@ -120,8 +121,65 @@ def run_multiple_simulations(runs, n_customers, *args, **kwargs):
 
     return wait_times
 
+def plot_distribution(wait_times):
+    plt.figure()
+    plt.hist(wait_times.flatten(), 100, density=True)
+    # plt.title('Histogram of wait times per customer')
+    plt.xlabel('Seconds')
+    plt.ylabel('Density')
+    plt.show()
+
+    plt.figure()
+    plt.hist(np.mean(wait_times, axis=1), 100, density=True)
+    # plt.title('Histogram of mean wait times')
+    plt.xlabel('Seconds')
+    plt.ylabel('Density')
+    plt.show()
+
+def test_normality(x):
+    fig = sm.qqplot(x, line='s')
+    fig.show()
+
+    print('Kolmogorov-Smirnov, H0: x=normal')
+    print(scs.kstest(x, 'norm'))
+
+    print('Jarque-Bera, H0: x=normal')
+    print(scs.jarque_bera(x))
+
+def test_difference(x, y):
+    print('Wilcoxon, H0: same distribution, H1: x > y')
+    print(scs.wilcoxon(x, y, alternative='greater', correction=True))
+
+    print('Mann-Whitney U, H0: same distribution, H1: x > y')
+    print(scs.mannwhitneyu(x, y, alternative='greater', use_continuity=True))
 
 if __name__ == '__main__':
-    wait_times = run_multiple_simulations(runs=100, n_customers=1000, _lambda=0.9, mu=1, n_servers=1)
-    print(f'Mean: {np.mean(wait_times)}')
-    print(f'Std: {np.mean(np.std(wait_times, axis=1))}')
+    runs = 10
+    n_customers = 10000
+
+    for lambda_ in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_, mu=1, n_servers=1)
+        np.savetxt(f'rho={lambda_},r={runs},n={n_customers},s=1,fifo.txt', wait_times)
+        means = np.mean(wait_times, axis=1)
+        mean = np.mean(means)
+        std = np.std(means)
+        print(f'Mean: {mean}')
+        print(f'Std: {std}')
+
+        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_ * 2, mu=1, n_servers=2)
+        np.savetxt(f'rho={lambda_}r={runs},n={n_customers},s=2,fifo.txt', wait_times)
+        means = np.mean(wait_times, axis=1)
+        mean = np.mean(means)
+        std = np.std(means)
+        print(f'Mean: {mean}')
+        print(f'Std: {std}')
+
+        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_ * 4, mu=1, n_servers=4)
+        np.savetxt(f'rho={lambda_}r={runs},n={n_customers},s=4,fifo.txt', wait_times)
+        means = np.mean(wait_times, axis=1)
+        mean = np.mean(means)
+        std = np.std(means)
+        print(f'Mean: {mean}')
+        print(f'Std: {std}')
+
+        print('-------------------')
