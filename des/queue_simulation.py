@@ -121,20 +121,25 @@ def run_multiple_simulations(runs, n_customers, *args, **kwargs):
 
     return wait_times
 
-def plot_distribution(wait_times):
+
+def plot_distribution(wait_times_c_1, wait_times_c_2, wait_times_c_4, range=()):
+    if not range:
+        min_wait_time = np.min([np.min(wait_times_c_1), np.min(wait_times_c_2), np.min(wait_times_c_4)])
+        max_wait_time = np.max([np.max(wait_times_c_1), np.max(wait_times_c_2), np.max(wait_times_c_4)])
+        range = (min_wait_time, max_wait_time)
+
     plt.figure()
-    plt.hist(wait_times.flatten(), 100, density=True)
-    # plt.title('Histogram of wait times per customer')
+    weights = np.ones_like(wait_times_c_1) / float(len(wait_times_c_1))
+    plt.hist(wait_times_c_1, bins=100, range=range, weights=weights, density=False, alpha=0.5, label='#Servers = 1')
+    weights = np.ones_like(wait_times_c_2) / float(len(wait_times_c_2))
+    plt.hist(wait_times_c_2, bins=100, range=range, weights=weights, density=False, alpha=0.5, label='#Servers = 2')
+    weights = np.ones_like(wait_times_c_4) / float(len(wait_times_c_4))
+    plt.hist(wait_times_c_4, bins=100, range=range, weights=weights, density=False, alpha=0.5, label='#Servers = 4')
+    plt.legend()
     plt.xlabel('Seconds')
     plt.ylabel('Density')
     plt.show()
 
-    plt.figure()
-    plt.hist(np.mean(wait_times, axis=1), 100, density=True)
-    # plt.title('Histogram of mean wait times')
-    plt.xlabel('Seconds')
-    plt.ylabel('Density')
-    plt.show()
 
 def test_normality(x):
     fig = sm.qqplot(x, line='s')
@@ -146,40 +151,117 @@ def test_normality(x):
     print('Jarque-Bera, H0: x=normal')
     print(scs.jarque_bera(x))
 
-def test_difference(x, y):
-    print('Wilcoxon, H0: same distribution, H1: x > y')
-    print(scs.wilcoxon(x, y, alternative='greater', correction=True))
+    print('Shapiro-Wilk, H0: x=normal')
+    print(scs.shapiro(x))
 
+
+def test_difference(x, y):
     print('Mann-Whitney U, H0: same distribution, H1: x > y')
     print(scs.mannwhitneyu(x, y, alternative='greater', use_continuity=True))
 
+    print('Mann-Whitney U, H0: same distribution, H1: x =/= y')
+    print(scs.mannwhitneyu(x, y, alternative='two-sided', use_continuity=True))
+
+
+def plot_rho_measurements_dependence(s_measurements_x, m_measurements_x, l_measurements_x,
+                                     s_measurements_y, m_measurements_y, l_measurements_y):
+    s_significance = np.zeros(len(s_measurements_x))
+    m_significance = np.zeros(len(m_measurements_x))
+    l_significance = np.zeros(len(l_measurements_x))
+    for i in range(len(s_measurements_x)):
+        s_significance[i] = scs.mannwhitneyu(s_measurements_x[i], s_measurements_y[i], alternative='greater')[0]
+        m_significance[i] = scs.mannwhitneyu(m_measurements_x[i], m_measurements_y[i], alternative='greater')[0]
+        l_significance[i] = scs.mannwhitneyu(l_measurements_x[i], l_measurements_y[i], alternative='greater')[0]
+
+    plt.figure()
+    plt.plot(np.arange(0.1, 1, 0.1), s_significance, label='#Measurements=10')
+    plt.plot(np.arange(0.1, 1, 0.1), m_significance, label='#Measurements=100')
+    plt.plot(np.arange(0.1, 1, 0.1), l_significance, label='#Measurements=1000')
+    plt.legend()
+    plt.xlabel('Rho')
+    plt.ylabel('Test statistic')
+    plt.show()
+
+
+def plot_boxplots(fifo, sjf, deg, hyp):
+    plt.figure()
+    plt.boxplot(fifo, positions=[0], sym='')
+    plt.boxplot(sjf, positions=[1], sym='')
+    plt.boxplot(deg, positions=[2], sym='')
+    plt.boxplot(hyp, positions=[3], sym='')
+    plt.xticks([0, 1, 2, 3], ['FIFO', 'Shortest job first', 'Constant mu', 'Hyperexponential mu'])
+    plt.ylabel('Average wait time')
+    plt.show()
+
+
+def setBoxColors(bp, color):
+    for offset in [0, 1, 2]:
+        plt.setp(bp['boxes'][0+offset], color=color)
+        plt.setp(bp['caps'][0+offset*2], color=color)
+        plt.setp(bp['caps'][1+offset*2], color=color)
+        plt.setp(bp['whiskers'][0+offset*2], color=color)
+        plt.setp(bp['whiskers'][1+offset*2], color=color)
+        plt.setp(bp['medians'][0+offset], color=color)
+
+
+def plot_all_boxplots(fifo, sjf, deg, hyp):
+    plt.figure()
+
+    bp = plt.boxplot(fifo, positions=[0, 3, 6], sym='', widths=0.75)
+    setBoxColors(bp, 'blue')
+    bp = plt.boxplot(sjf, positions=[1, 4, 7], sym='', widths=0.75)
+    setBoxColors(bp, 'green')
+    ax = plt.gca()
+    ax.set_xticklabels('')
+    ax.set_xticks([0.5, 3.5, 6.5], minor=True)
+    ax.set_xticklabels([1, 2, 4,], minor=True)
+    plt.ylabel('Average wait time')
+    plt.xlabel('Number of servers')
+    h1, = plt.plot([1, 1],'b-')
+    h2, = plt.plot([1, 1],'g-')
+    plt.legend((h1, h2),('FIFO, exp mu', 'Shortest job first, exp mu'))
+    h1.set_visible(False)
+    h2.set_visible(False)
+    plt.show()
+
+    plt.figure()
+    bp = plt.boxplot(fifo, positions=[0, 3, 6], sym='', widths=0.7)
+    setBoxColors(bp, 'blue')
+    bp = plt.boxplot(deg, positions=[1, 4, 7], sym='', widths=0.7)
+    setBoxColors(bp, 'red')
+    ax = plt.gca()
+    ax.set_xticklabels('')
+    ax.set_xticks([0.5, 3.5, 6.5], minor=True)
+    ax.set_xticklabels([1, 2, 4,], minor=True)
+    plt.ylabel('Average wait time')
+    plt.xlabel('Number of servers')
+    h1, = plt.plot([1, 1],'b-')
+    h2, = plt.plot([1, 1],'r-')
+    plt.legend((h1, h2),('FIFO, exp mu', 'FIFO, const mu'))
+    h1.set_visible(False)
+    h2.set_visible(False)
+    plt.show()
+
+    plt.figure()
+    bp = plt.boxplot(fifo, positions=[0, 3, 6], sym='', widths=0.7)
+    setBoxColors(bp, 'blue')
+    bp = plt.boxplot(hyp, positions=[1, 4, 7], sym='', widths=0.7)
+    setBoxColors(bp, 'm')
+    ax = plt.gca()
+    ax.set_xticklabels('')
+    ax.set_xticks([0.5, 3.5, 6.5], minor=True)
+    ax.set_xticklabels([1, 2, 4,], minor=True)
+    plt.ylabel('Average wait time')
+    plt.xlabel('Number of servers')
+    h1, = plt.plot([1, 1],'b-')
+    h2, = plt.plot([1, 1],'m-')
+    plt.legend((h1, h2),('FIFO, exp mu', 'FIFO, hyperexp mu'))
+    h1.set_visible(False)
+    h2.set_visible(False)
+    plt.show()
+
+
 if __name__ == '__main__':
-    runs = 10
-    n_customers = 10000
-
-    for lambda_ in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
-        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_, mu=1, n_servers=1)
-        np.savetxt(f'rho={lambda_},r={runs},n={n_customers},s=1,fifo.txt', wait_times)
-        means = np.mean(wait_times, axis=1)
-        mean = np.mean(means)
-        std = np.std(means)
-        print(f'Mean: {mean}')
-        print(f'Std: {std}')
-
-        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_ * 2, mu=1, n_servers=2)
-        np.savetxt(f'rho={lambda_}r={runs},n={n_customers},s=2,fifo.txt', wait_times)
-        means = np.mean(wait_times, axis=1)
-        mean = np.mean(means)
-        std = np.std(means)
-        print(f'Mean: {mean}')
-        print(f'Std: {std}')
-
-        wait_times = run_multiple_simulations(runs=runs, n_customers=n_customers, _lambda=lambda_ * 4, mu=1, n_servers=4)
-        np.savetxt(f'rho={lambda_}r={runs},n={n_customers},s=4,fifo.txt', wait_times)
-        means = np.mean(wait_times, axis=1)
-        mean = np.mean(means)
-        std = np.std(means)
-        print(f'Mean: {mean}')
-        print(f'Std: {std}')
-
-        print('-------------------')
+    x = run_multiple_simulations(runs=1000, n_customers=10000, _lambda=0.9, mu=1, n_servers=1)
+    test_normality(x)
+    plot_distribution(x)
