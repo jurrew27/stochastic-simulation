@@ -1,0 +1,10 @@
+NAME: test5.opt.tour
+COMMENT: Optimal tour for test5.tsp
+TYPE: TOUR
+DIMENSION: 5
+TOUR_SECTION
+1
+3
+4
+5
+2
