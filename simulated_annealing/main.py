@@ -4,7 +4,7 @@ import multiprocessing as mp
 
 
 class SimulatedAnnealing:
-    def __init__(self, cities, chain_length, trials, control_start, cooling_param, cooling_method):
+    def __init__(self, cities, chain_length, trials, control_start, cooling_param, cooling_method='linear'):
         self.cities = cities
         self.control_start = control_start
         self.chain_length = chain_length
@@ -18,9 +18,29 @@ class SimulatedAnnealing:
         else:
             self.calculate_new_control = self.linear_cooling
 
-    def ratio_accepted(self):
-        # Needs to check (n!)^2 pairs, quite impossible, need to think of something smarter
-        pass
+    def ratio_accepted(self, samples):
+        samples = min(samples, np.math.factorial(len(cities)))
+        tours = np.zeros((samples, len(self.cities)), dtype=np.int32)
+        perms = set()
+        for i in range(samples):
+            while True:
+                perm = np.random.permutation(range(1, len(self.cities)))
+                key = tuple(perm)
+                if key not in perms:
+                    perms.update(key)
+                    break
+
+            tours[i, 1:] = perm
+
+        cost_tours = np.array([self.length_tour(tour) for tour in tours])
+
+        sum_probabilities = 0
+        for i in range(samples):
+            for j in range(samples):
+                if i == j:
+                    continue
+                sum_probabilities += min(1, np.exp(-(cost_tours[i]-cost_tours[j]) / self.control_start))
+        return sum_probabilities / (samples * (samples - 1))
 
     def linear_cooling(self, all_tours, all_costs, all_controls):
         if len(all_tours) % self.chain_length == 0:
