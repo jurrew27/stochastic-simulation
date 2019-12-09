@@ -128,9 +128,42 @@ def import_configuration(tsp_filename):
     return cities
 
 
+def plot_cost(costs):
+    costs_mean = np.mean(costs, axis=0)
+    costs_std = np.std(costs, axis=0)
+
+    plt.figure()
+    plt.plot(costs_mean)
+    plt.fill_between(range(len(costs_mean)), costs_mean - costs_std, costs_mean + costs_std, alpha=0.3)
+    plt.show()
+
+
+def plot_cost_control(costs, controls):
+    costs_mean = np.mean(costs, axis=0)
+    costs_std = np.std(costs, axis=0)
+
+    fig, ax1 = plt.subplots()
+
+    ax1.set_xlabel('Markov Steps')
+    ax1.set_ylabel('Tour distance', color='tab:blue')
+    ax1.plot(costs_mean, color='tab:blue')
+    ax1.set_ylim(bottom=0)
+    ax1.fill_between(range(len(costs_mean)), costs_mean - costs_std, costs_mean + costs_std, alpha=0.3)
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Control', color='tab:red')
+    ax2.plot(np.mean(controls,axis=0), color='tab:red')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
+
+    fig.tight_layout()
+    plt.show()
+
 if __name__ == '__main__':
     cities = import_configuration('TSP-Configurations/eil51.tsp.txt')
-    sa = SimulatedAnnealing(cities, chain_length=100, trials=100, control_start=5, cooling_param=0.95)
-    tours, costs, controls = sa.run_multiple(5)
-    print(tours)
-    print(costs)
+    sa = SimulatedAnnealing(cities, chain_length=5000, trials=10, control_start=75, cooling_param=0.66)
+    # print(np.mean(mp.Pool().map(sa.ratio_accepted, [1000]*5)))
+    tours, costs, controls = sa.run_multiple(100)
+    plot_cost_control(costs, controls)
+
+
