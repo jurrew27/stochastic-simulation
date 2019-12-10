@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from itertools import permutations
 
 
 class SimulatedAnnealing:
@@ -147,7 +148,6 @@ def plot_cost_control(costs, controls):
     ax1.set_xlabel('Markov Steps')
     ax1.set_ylabel('Tour distance', color='tab:blue')
     ax1.plot(costs_mean, color='tab:blue')
-    ax1.set_ylim(bottom=0)
     ax1.fill_between(range(len(costs_mean)), costs_mean - costs_std, costs_mean + costs_std, alpha=0.3)
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
@@ -158,6 +158,36 @@ def plot_cost_control(costs, controls):
 
     fig.tight_layout()
     plt.show()
+
+
+def plot_frequencies(tours, controls):
+    if tours.shape[2] > 10:
+        print('Too many states to count')
+        return
+
+    all_perms = np.array(list((permutations(range(1, tours.shape[2])))))
+    all_perms = np.concatenate((np.zeros((len(all_perms), 1), dtype=np.int32), all_perms), axis=1)
+    all_perms = all_perms[all_perms[:, 1].argsort()]  # might not be necessary ?
+
+    states_table = {}
+    for i, perm in enumerate(all_perms):
+        states_table[perm.tostring()] = i
+
+    control_values, control_counts = np.unique(controls[0], return_counts=True)
+    chain_length = control_counts[0]
+    for i, control in enumerate(control_values[::-1]):
+        lower_bound = i * chain_length
+        upper_bound = (i + 1) * chain_length
+        tours_control = tours[:, lower_bound:upper_bound, :].reshape(-1, tours.shape[-1])
+
+        frequencies = [states_table[state.tostring()] for state in tours_control]
+        plt.figure()
+        plt.hist(frequencies, bins=len(all_perms), range=(0, len(all_perms)))
+        plt.xlabel('Tour number')
+        plt.ylabel('Frequency')
+        plt.title(f'Control: {control}')
+        plt.show()
+
 
 if __name__ == '__main__':
     cities = import_configuration('TSP-Configurations/eil51.tsp.txt')
