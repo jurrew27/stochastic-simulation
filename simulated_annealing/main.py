@@ -189,6 +189,47 @@ def plot_frequencies(tours, controls):
         plt.show()
 
 
+def plot_acceptance_rate(tours, controls):
+    control_values, control_counts = np.unique(controls[0], return_counts=True)
+    control_values = control_values[::-1]
+    chain_length = control_counts[0]
+    accepted_ratio = np.zeros((len(tours), len(control_values)))
+
+    for i, control in enumerate(control_values):
+        lower_bound = i * chain_length
+        upper_bound = (i + 1) * chain_length
+        tours_control = tours[:, lower_bound:upper_bound, :]
+
+        for run, run_tours in enumerate(tours_control):
+            accepted = 0
+            previous_tour = tours_control[0]
+            for tour in run_tours[1:]:
+                if not np.array_equal(tour, previous_tour):
+                    accepted += 1
+                previous_tour = tour
+
+            accepted_ratio[run, i] = accepted / (len(run_tours) - 1)
+
+    means = np.mean(accepted_ratio, axis=0)
+    stds = np.std(accepted_ratio, axis=0)
+
+    fig, ax1 = plt.subplots()
+
+    ax1.set_xlabel('Trial')  # Right word?
+    ax1.set_ylabel('Ratio new states accepted', color='tab:blue')
+    ax1.plot(means, color='tab:blue')
+    ax1.fill_between(range(len(means)), means - stds, means + stds, alpha=0.3)
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Control value', color='tab:red')
+    ax2.plot(control_values, color='tab:red')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
+
+    fig.tight_layout()
+    plt.show()
+
+
 if __name__ == '__main__':
     cities = import_configuration('TSP-Configurations/eil51.tsp.txt')
     sa = SimulatedAnnealing(cities, chain_length=5000, trials=10, control_start=75, cooling_param=0.66)
