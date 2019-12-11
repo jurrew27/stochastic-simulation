@@ -45,7 +45,7 @@ class SimulatedAnnealing:
         return sum_probabilities / (samples * (samples - 1))
 
     def linear_cooling(self, all_tours, all_costs, all_controls):
-        if len(all_tours) % self.chain_length == 0:
+        if len(all_costs) % self.chain_length == 0:
             return all_controls[-1] * self.cooling_param
         else:
             return all_controls[-1]
@@ -54,7 +54,7 @@ class SimulatedAnnealing:
         return all_controls[-1] * self.cooling_param
 
     def stationary_cooling(self, all_tours, all_costs, all_controls):
-        if len(all_tours) % self.chain_length == 0:
+        if len(all_costs) % self.chain_length == 0:
             std = np.std(all_costs[-self.chain_length:])
             return all_controls[-1] * (1 + (np.log(1 + self.cooling_param) * all_controls[-1] / 3 * std))**-1
         else:
@@ -89,7 +89,7 @@ class SimulatedAnnealing:
 
         return tour, cost
 
-    def run(self):
+    def run(self, keep_tours, keep_controls):
         np.random.seed()
         tour = np.concatenate(([0], np.random.permutation(range(1, len(self.cities)))))
 
@@ -101,14 +101,19 @@ class SimulatedAnnealing:
             tour, cost = self.do_markov_step(all_tours, all_costs, all_controls)
             control = self.calculate_new_control(all_tours, all_costs, all_controls)
 
+            if not keep_tours:
+                all_tours.pop()
+            if not keep_controls:
+                all_controls.pop()
+
             all_tours.append(tour)
             all_costs.append(cost)
             all_controls.append(control)
 
         return np.array(all_tours), np.array(all_costs), np.array(all_controls)
 
-    def run_multiple(self, runs):
-        results_per_run = mp.Pool().starmap(self.run, [() for _ in range(runs)])
+    def run_multiple(self, runs, keep_tours=False, keep_controls=True):
+        results_per_run = mp.Pool().starmap(self.run, [(keep_tours, keep_controls) for _ in range(runs)])
         results = [np.array(t) for t in zip(*results_per_run)]
         return results[0], results[1], results[2]
 
