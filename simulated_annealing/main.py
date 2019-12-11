@@ -232,6 +232,22 @@ def plot_acceptance_rate(tours, controls):
     plt.show()
 
 
+def plot_different_controls(costs_array, controls_array):
+    plt.figure()
+    plt.xlabel('Markov step')
+    plt.ylabel('Tour distance')
+
+    for costs, control in zip(costs_array, controls_array):
+        costs_mean = np.mean(costs, axis=0)
+        costs_std = np.std(costs, axis=0)
+
+        plt.plot(costs_mean, label=f'Alpha: {control}')
+        plt.fill_between(range(len(costs_mean)), costs_mean - costs_std, costs_mean + costs_std, alpha=0.3)
+
+    plt.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
     cities = import_configuration('TSP-Configurations/eil51.tsp.txt')
     sa = SimulatedAnnealing(cities, chain_length=5000, trials=10, control_start=75, cooling_param=0.66)
