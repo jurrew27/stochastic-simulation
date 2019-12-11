@@ -20,6 +20,7 @@ class SimulatedAnnealing:
             self.calculate_new_control = self.linear_cooling
 
     def ratio_accepted(self, samples):
+        np.random.seed()
         samples = min(samples, np.math.factorial(len(cities)))
         tours = np.zeros((samples, len(self.cities)), dtype=np.int32)
         perms = set()
@@ -89,6 +90,7 @@ class SimulatedAnnealing:
         return tour, cost
 
     def run(self):
+        np.random.seed()
         tour = np.concatenate(([0], np.random.permutation(range(1, len(self.cities)))))
 
         all_tours = [tour]
