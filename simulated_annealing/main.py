@@ -147,14 +147,14 @@ def plot_cost_control(costs, controls):
 
     fig, ax1 = plt.subplots()
 
-    ax1.set_xlabel('Markov Steps')
+    ax1.set_xlabel('Markov Step')
     ax1.set_ylabel('Tour distance', color='tab:blue')
     ax1.plot(costs_mean, color='tab:blue')
     ax1.fill_between(range(len(costs_mean)), costs_mean - costs_std, costs_mean + costs_std, alpha=0.3)
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     ax2 = ax1.twinx()
-    ax2.set_ylabel('Control', color='tab:red')
+    ax2.set_ylabel('Control value', color='tab:red')
     ax2.plot(np.mean(controls,axis=0), color='tab:red')
     ax2.tick_params(axis='y', labelcolor='tab:red')
 
@@ -217,16 +217,16 @@ def plot_acceptance_rate(tours, controls):
 
     fig, ax1 = plt.subplots()
 
-    ax1.set_xlabel('Trial')  # Right word?
-    ax1.set_ylabel('Ratio new states accepted', color='tab:blue')
-    ax1.plot(means, color='tab:blue')
-    ax1.fill_between(range(len(means)), means - stds, means + stds, alpha=0.3)
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
+    ax1.set_ylabel('Control value', color='tab:red')
+    ax1.set_xlabel('Markov chain')
+    ax1.plot(control_values, color='tab:red')
+    ax1.tick_params(axis='y', labelcolor='tab:red')
 
     ax2 = ax1.twinx()
-    ax2.set_ylabel('Control value', color='tab:red')
-    ax2.plot(control_values, color='tab:red')
-    ax2.tick_params(axis='y', labelcolor='tab:red')
+    ax2.set_ylabel('Ratio new states accepted', color='tab:blue')
+    ax2.plot(means, color='tab:blue')
+    ax2.fill_between(range(len(means)), means - stds, means + stds, alpha=0.3)
+    ax2.tick_params(axis='y', labelcolor='tab:blue')
 
     fig.tight_layout()
     plt.show()
