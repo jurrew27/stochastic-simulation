@@ -21,7 +21,7 @@ class SimulatedAnnealing:
 
     def ratio_accepted(self, samples):
         np.random.seed()
-        samples = min(samples, np.math.factorial(len(cities)))
+        samples = min(samples, np.math.factorial(len(self.cities)))
         tours = np.zeros((samples, len(self.cities)), dtype=np.int32)
         perms = set()
         for i in range(samples):
